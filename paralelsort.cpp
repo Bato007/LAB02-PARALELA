@@ -9,6 +9,7 @@
 
 using namespace std;
 
+#define N_THREADS 10
 #define MAX_NUMEROS 100
 #define DEFAULT_GENERATIONS 100
 #define UNSORTED_FILE "./unsorted.txt"
@@ -17,6 +18,7 @@ using namespace std;
 void quickSort(vector<int> numeros[], int lo, int hi);
 
 int main(int argc, char* argv[]){
+  int n_threads=N_THREADS;
   string unsortFileName = UNSORTED_FILE;
   string sortedFileName = SORTED_FILE;
   vector<int> numbers;
@@ -33,11 +35,17 @@ int main(int argc, char* argv[]){
   int size = numbers.size() - 1;
 
   double t_init = omp_get_wtime();
-  quickSort(&numbers, 0, size);
+
+  #pragma omp parallel num_threads(n_threads)
+  {
+    #pragma omp single
+    quickSort(&numbers, 0, size);
+  }
   double t_fin = omp_get_wtime();
   double delta = t_fin - t_init;
   cout << "Tiempo estimado = " << delta << endl;
   cout << "Para N = " << numbers.size() << endl;
+  cout << "Para n_threads = " << n_threads << endl;
 
   // Imprimimos los números almacenados en el array
   if (numbers.size() > 0) {
@@ -45,7 +53,6 @@ int main(int argc, char* argv[]){
     for (int i = 1; i < numbers.size(); i++) {
       sortedFile << "," << numbers.at(i);
     }
-    cout << endl;
   }
 
   // Close files
@@ -75,6 +82,9 @@ void quickSort(vector<int> numeros[], int lo, int hi)
   }
 
   //recursive call
+  #pragma omp task shared (numeros) if(h-lo > 1000) mergeable
   quickSort(numeros, lo, h);
+  #pragma omp task shared (numeros) if(hi-l > 1000) mergeable
   quickSort(numeros, l, hi);
+  #pragma omp taskwait
 }
